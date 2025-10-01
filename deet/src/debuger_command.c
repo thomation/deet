@@ -2,6 +2,33 @@
 #include <string.h>
 #include "debuger_command.h"
 
+typedef struct
+{
+    const char *name;
+    int cmd_type;
+} cmd_map_entry;
+
+static const cmd_map_entry cmd_map[] = {
+    {"run", CMD_RUN},
+    {"r", CMD_RUN},
+    {"continue", CMD_CONTINUE},
+    {"c", CMD_CONTINUE},
+    {"step", CMD_STEP},
+    {"s", CMD_STEP},
+    {"quit", CMD_QUIT},
+    {"q", CMD_QUIT},
+};
+
+static int lookup_cmd_type(const char *cmd)
+{
+    for (size_t i = 0; i < sizeof(cmd_map) / sizeof(cmd_map[0]); ++i)
+    {
+        if (strcmp(cmd, cmd_map[i].name) == 0)
+            return cmd_map[i].cmd_type;
+    }
+    return CMD_INVALID;
+}
+
 debuger_command *debuger_command_new(const char *input)
 {
     debuger_command *dbg_cmd = (debuger_command *)malloc(sizeof(debuger_command));
@@ -10,7 +37,6 @@ debuger_command *debuger_command_new(const char *input)
         return NULL;
     }
 
-    // 复制输入，避免修改原字符串
     char *input_copy = strdup(input);
     if (!input_copy)
     {
@@ -18,34 +44,11 @@ debuger_command *debuger_command_new(const char *input)
         return NULL;
     }
 
-    // 解析命令名和参数
     char *token = strtok(input_copy, " ");
     dbg_cmd->cmd = token ? strdup(token) : NULL;
+    dbg_cmd->cmd_type = token ? lookup_cmd_type(token) : CMD_INVALID;
 
-    if (token && strcmp(token, "run") == 0)
-    {
-        dbg_cmd->cmd_type = CMD_RUN;
-    }
-    else if (token && strcmp(token, "continue") == 0)
-    {
-        dbg_cmd->cmd_type = CMD_CONTINUE;
-    }
-    else if (token && strcmp(token, "step") == 0)
-    {
-        dbg_cmd->cmd_type = CMD_STEP;
-    }
-    else if (token && strcmp(token, "quit") == 0)
-    {
-        dbg_cmd->cmd_type = CMD_QUIT;
-    }
-    else
-    {
-        dbg_cmd->cmd_type = CMD_INVALID;
-    }
-
-    // 解析参数
     dbg_cmd->argc = 0;
-    dbg_cmd->argv = NULL;
     int max_args = 10;
     dbg_cmd->argv = malloc(sizeof(char *) * max_args);
     char *arg;
