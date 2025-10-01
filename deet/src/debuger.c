@@ -3,20 +3,14 @@
 #include <sys/types.h>
 #include <string.h>
 #include "debuger.h"
+#include "debuger_command.h"
+
 struct _debuger
 {
     const char *prog_path;
     pid_t child_pid;
 };
-enum command
-{
-    CMD_RUN,
-    CMD_CONTINUE,
-    CMD_STEP,
-    CMD_QUIT,
-    CMD_INVALID
-};
-static int get_next_command(void);
+static debuger_command *get_next_command(void);
 
 debuger *debuger_new(const char *prog_path)
 {
@@ -31,10 +25,15 @@ debuger *debuger_new(const char *prog_path)
 }
 void debuger_run(debuger *dbg)
 {
-    while(1)
+    while (1)
     {
-        enum command cmd = get_next_command();
-        switch (cmd)
+        debuger_command *cmd = get_next_command();
+        if (cmd == NULL)
+        {
+            printf("Invalid command.\n");
+            continue;
+        }
+        switch (cmd->cmd_type)
         {
         case CMD_RUN:
             printf("Running program: %s\n", dbg->prog_path);
@@ -50,38 +49,29 @@ void debuger_run(debuger *dbg)
             break;
         case CMD_QUIT:
             printf("Quitting debugger.\n");
+            debuger_command_free(cmd);
             return; // 退出调试器
         case CMD_INVALID:
         default:
             printf("Invalid command. Available commands: run, continue, step, quit\n");
             break;
         }
+        debuger_command_free(cmd);
     }
 }
-static int get_next_command()
+static debuger_command *get_next_command()
 {
     // 显示(deet)提示，并且读入一行用户输入,然后解析命令
     char input[128];
     printf("(deet) ");
-    if (fgets(input, sizeof(input), stdin) == NULL) {
-        return CMD_INVALID;
+    if (fgets(input, sizeof(input), stdin) == NULL)
+    {
+        return NULL;
     }
 
     // 去除换行符
     input[strcspn(input, "\n")] = 0;
-
-    if (strcmp(input, "run") == 0) {
-        return CMD_RUN;
-    } else if (strcmp(input, "continue") == 0) {
-        return CMD_CONTINUE;
-    } else if (strcmp(input, "step") == 0) {
-        return CMD_STEP;
-    } else if (strcmp(input, "quit") == 0) {
-        return CMD_QUIT;
-    } else {
-        return CMD_INVALID;
-    }
-    return CMD_INVALID;
+    return debuger_command_new(input);
 }
 void debuger_free(debuger *dbg)
 {
