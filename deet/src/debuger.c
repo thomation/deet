@@ -40,7 +40,6 @@ void debuger_run(debuger *dbg)
         switch (debuger_command_get_type(cmd))
         {
         case CMD_RUN:
-            printf("Running program: %s\n", dbg->prog_path);
             if (dbg->inf != NULL)
             {
                 printf("Program is already running.\n");
@@ -49,8 +48,12 @@ void debuger_run(debuger *dbg)
             dbg->inf = inferior_new(dbg->prog_path, argc, argv);
             break;
         case CMD_CONTINUE:
-            printf("Continuing execution...\n");
-            // 在这里添加继续执行的代码
+            if( dbg->inf == NULL)
+            {
+                printf("No program is being debugged. Use 'run' to start.\n");
+                break;
+            }
+            inferior_continue(dbg->inf); 
             break;
         case CMD_STEP:
             printf("Stepping through...\n");

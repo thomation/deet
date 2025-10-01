@@ -95,6 +95,14 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
     return inf;
 }
 
+void inferior_continue(inferior *inf)
+{
+    if (inf && inf->child_pid > 0)
+    {
+        ptrace(PTRACE_CONT, inf->child_pid, NULL, NULL);
+        wait_child(inf);
+    }
+}
 void inferior_free(inferior *inf)
 {
     if (inf)
