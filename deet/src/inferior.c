@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/wait.h>
+#include <sys/ptrace.h>
+#include <signal.h>
+#include <sys/reg.h>
 
 struct _inferior
 {
@@ -36,6 +39,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
     pid_t pid = fork();
     if (pid == 0)
     {
+        ptrace(PTRACE_TRACEME, 0, NULL, NULL);
         // 子进程
         execvp(prog_path, exec_argv);
         // 代码走不到这里，除非execvp失败
@@ -46,9 +50,16 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
     {
         // 父进程
         inf->child_pid = pid;
-        int status;
+        int status = 0;
+        printf("wait %d to change state\n", pid);
         waitpid(pid, &status, 0);
-        if (WIFEXITED(status)) {
+        printf("After wait %d state:%d\n", pid, status);
+        if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+            printf("Child stopped by SIGTRAP\n");
+            ptrace(PTRACE_CONT, pid, NULL, NULL);
+            waitpid(pid, &status, 0);
+        }
+        else if (WIFEXITED(status)) {
             printf("Child exited (status %d)\n", WEXITSTATUS(status));
         } else if (WIFSIGNALED(status)) {
             printf("Child killed by signal %d\n", WTERMSIG(status));
