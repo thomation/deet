@@ -2,7 +2,7 @@ enum command
 {
     CMD_RUN,
     CMD_CONTINUE,
-    CMD_STEP,
+    CMD_BACKTRACE,
     CMD_QUIT,
     CMD_INVALID
 };

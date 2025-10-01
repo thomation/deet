@@ -33,7 +33,7 @@ clean:
 	rm -f $(DEBUGGER) $(DEBUGGER_OBJS) $(SAMPLE_PROGS)
 
 test: $(DEBUGGER) $(SAMPLE_PROGS)
-	./$(DEBUGGER) samples/sleepy_print
+	./$(DEBUGGER) samples/segfault
 
 info:
 	@echo "调试器源文件: $(DEBUGGER_SRCS)"

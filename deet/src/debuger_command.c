@@ -20,8 +20,8 @@ static const cmd_map_entry cmd_map[] = {
     {"r", CMD_RUN},
     {"continue", CMD_CONTINUE},
     {"c", CMD_CONTINUE},
-    {"step", CMD_STEP},
-    {"s", CMD_STEP},
+    {"backtrace", CMD_BACKTRACE},
+    {"bt", CMD_BACKTRACE},
     {"quit", CMD_QUIT},
     {"q", CMD_QUIT},
 };

@@ -24,6 +24,15 @@ debuger *debuger_new(const char *prog_path)
     dbg->inf = NULL;
     return dbg;
 }
+static int check_inferior_running(debuger *dbg)
+{
+    if (dbg->inf == NULL)
+    {
+        printf("No program is being debugged. Use 'run' to start.\n");
+        return 0;
+    }
+    return 1;
+}
 void debuger_run(debuger *dbg)
 {
     while (1)
@@ -47,16 +56,12 @@ void debuger_run(debuger *dbg)
             dbg->inf = inferior_new(dbg->prog_path, argc, argv);
             break;
         case CMD_CONTINUE:
-            if (dbg->inf == NULL)
-            {
-                printf("No program is being debugged. Use 'run' to start.\n");
-                break;
-            }
-            inferior_continue(dbg->inf);
+            if(check_inferior_running(dbg))
+                inferior_continue(dbg->inf);
             break;
-        case CMD_STEP:
-            printf("Stepping through...\n");
-            // 在这里添加单步执行的代码
+        case CMD_BACKTRACE:
+            if(check_inferior_running(dbg))
+                inferior_backtrace(dbg->inf);
             break;
         case CMD_QUIT:
             printf("Quitting debugger.\n");

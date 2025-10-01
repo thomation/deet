@@ -8,6 +8,7 @@
 #include <sys/ptrace.h>
 #include <signal.h>
 #include <sys/reg.h>
+#include <sys/user.h>
 
 struct _inferior
 {
@@ -101,6 +102,21 @@ void inferior_continue(inferior *inf)
     {
         ptrace(PTRACE_CONT, inf->child_pid, NULL, NULL);
         wait_child(inf);
+    }
+}
+void inferior_backtrace(inferior *inf)
+{
+    if (inf && inf->child_pid > 0)
+    {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, inf->child_pid, NULL, &regs) == -1)
+        {
+            perror("ptrace(GETREGS)");
+            return;
+        }
+        // RIP寄存器包含当前指令指针，即当前执行的指令地址，崩溃时候也就是崩溃地址
+        printf("RIP: 0x%llx\n", regs.rip);
+        // 这里可以添加更多寄存器的打印
     }
 }
 void inferior_free(inferior *inf)
