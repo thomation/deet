@@ -42,18 +42,17 @@ void debuger_run(debuger *dbg)
         case CMD_RUN:
             if (dbg->inf != NULL)
             {
-                printf("Program is already running.\n");
-                break;
+                inferior_free(dbg->inf);
             }
             dbg->inf = inferior_new(dbg->prog_path, argc, argv);
             break;
         case CMD_CONTINUE:
-            if( dbg->inf == NULL)
+            if (dbg->inf == NULL)
             {
                 printf("No program is being debugged. Use 'run' to start.\n");
                 break;
             }
-            inferior_continue(dbg->inf); 
+            inferior_continue(dbg->inf);
             break;
         case CMD_STEP:
             printf("Stepping through...\n");
