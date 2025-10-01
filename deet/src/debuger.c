@@ -4,11 +4,12 @@
 #include <string.h>
 #include "debuger.h"
 #include "debuger_command.h"
+#include "inferior.h"
 
 struct _debuger
 {
     const char *prog_path;
-    pid_t child_pid;
+    inferior *inf;
 };
 static debuger_command *get_next_command(void);
 
@@ -20,7 +21,7 @@ debuger *debuger_new(const char *prog_path)
         return NULL;
     }
     dbg->prog_path = prog_path;
-    dbg->child_pid = -1; // Initialize child_pid
+    dbg->inf = NULL;
     return dbg;
 }
 void debuger_run(debuger *dbg)
@@ -40,7 +41,12 @@ void debuger_run(debuger *dbg)
         {
         case CMD_RUN:
             printf("Running program: %s\n", dbg->prog_path);
-            // 在这里添加运行程序的代码
+            if (dbg->inf != NULL)
+            {
+                printf("Program is already running.\n");
+                break;
+            }
+            dbg->inf = inferior_new(dbg->prog_path, argc, argv);
             break;
         case CMD_CONTINUE:
             printf("Continuing execution...\n");
@@ -80,6 +86,8 @@ void debuger_free(debuger *dbg)
 {
     if (dbg)
     {
+        if (dbg->inf)
+            inferior_free(dbg->inf);
         free(dbg);
     }
 }
