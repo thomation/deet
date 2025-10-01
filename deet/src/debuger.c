@@ -33,7 +33,10 @@ void debuger_run(debuger *dbg)
             printf("Invalid command.\n");
             continue;
         }
-        switch (cmd->cmd_type)
+        int argc;
+        const char **argv;
+        argc = debuger_command_get_args(cmd, &argv);
+        switch (debuger_command_get_type(cmd))
         {
         case CMD_RUN:
             printf("Running program: %s\n", dbg->prog_path);

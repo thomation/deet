@@ -7,12 +7,8 @@ enum command
     CMD_INVALID
 };
 
-typedef struct _debuger_command
-{
-    enum command cmd_type;
-    const char *cmd;
-    int argc;
-    char **argv;
-} debuger_command;
+typedef struct _debuger_command debuger_command;
 debuger_command *debuger_command_new(const char *cmd);
-void * debuger_command_free(debuger_command *cmd);
+int debuger_command_get_args(const debuger_command *cmd, const char ***argv);
+int debuger_command_get_type(const debuger_command *cmd);
+void *debuger_command_free(debuger_command *cmd);

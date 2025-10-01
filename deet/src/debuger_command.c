@@ -2,6 +2,13 @@
 #include <string.h>
 #include "debuger_command.h"
 
+struct _debuger_command
+{
+    enum command cmd_type;
+    const char *cmd;
+    int argc;
+    char **argv;
+};
 typedef struct
 {
     const char *name;
@@ -59,6 +66,19 @@ debuger_command *debuger_command_new(const char *input)
 
     free(input_copy);
     return dbg_cmd;
+}
+int debuger_command_get_args(const debuger_command *cmd, const char ***argv)
+{
+    if (!cmd || !argv)
+        return 0;
+    *argv = (const char **)cmd->argv;
+    return cmd->argc;
+}
+int debuger_command_get_type(const debuger_command *cmd)
+{
+    if (!cmd)
+        return CMD_INVALID;
+    return cmd->cmd_type;
 }
 void *debuger_command_free(debuger_command *cmd)
 {
