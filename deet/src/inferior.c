@@ -14,7 +14,22 @@ struct _inferior
     const char *prog_path;
     pid_t child_pid;
 };
-
+void wait_child(inferior * inf)
+{
+    int status = 0;
+    pid_t pid = inf->child_pid;
+    waitpid(pid, &status, 0);
+    if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+        // printf("Child stopped by SIGTRAP\n");
+        ptrace(PTRACE_CONT, pid, NULL, NULL);
+        wait_child(inf);
+    }
+    else if (WIFEXITED(status)) {
+        printf("Child exited (status %d)\n", WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        printf("Child killed by signal %d\n", WTERMSIG(status));
+    }
+}
 inferior *inferior_new(const char *prog_path, int argc, const char **argv)
 {
     inferior *inf = (inferior *)malloc(sizeof(inferior));
@@ -50,20 +65,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
     {
         // 父进程
         inf->child_pid = pid;
-        int status = 0;
-        printf("wait %d to change state\n", pid);
-        waitpid(pid, &status, 0);
-        printf("After wait %d state:%d\n", pid, status);
-        if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
-            printf("Child stopped by SIGTRAP\n");
-            ptrace(PTRACE_CONT, pid, NULL, NULL);
-            waitpid(pid, &status, 0);
-        }
-        else if (WIFEXITED(status)) {
-            printf("Child exited (status %d)\n", WEXITSTATUS(status));
-        } else if (WIFSIGNALED(status)) {
-            printf("Child killed by signal %d\n", WTERMSIG(status));
-        }
+        wait_child(inf);
     }
     else
     {
