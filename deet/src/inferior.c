@@ -106,5 +106,14 @@ void inferior_continue(inferior *inf)
 void inferior_free(inferior *inf)
 {
     if (inf)
+    {
+        if (inf->child_pid > 0)
+        {
+            printf("Freeing inferior with pid %d\n", inf->child_pid);
+            kill(inf->child_pid, SIGKILL);
+            int status;
+            waitpid(inf->child_pid, &status, 0);
+        }
         free(inf);
+    }
 }
