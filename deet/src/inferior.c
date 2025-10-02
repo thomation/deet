@@ -15,7 +15,37 @@ struct _inferior
 {
     const char *prog_path;
     pid_t child_pid;
+    breakpoint *bp_ref; // 引用的断点结构体，不要free它
 };
+static int set_breakpoint(inferior *inf, unsigned long addr)
+{
+    long data = ptrace(PTRACE_PEEKDATA, inf->child_pid, (void *)addr, NULL);
+    if (data == -1)
+    {
+        perror("ptrace(PEEKDATA)");
+        return 0;
+    }
+    long data_with_int3 = (data & ~0xff) | 0xcc; // 将最低字节替换为0xcc
+    if (ptrace(PTRACE_POKEDATA, inf->child_pid, (void *)addr, (void *)data_with_int3) == -1)
+    {
+        perror("ptrace(POKEDATA)");
+        return 0;
+    }
+    printf("Set breakpoint at 0x%lx, data: 0x%lx  -> 0x%lx\n", addr, data, data_with_int3);
+    return 1;
+}
+
+static void set_breakpoints(inferior *inf)
+{
+    if (inf == NULL || inf->bp_ref == NULL)
+        return;
+    for (int i = 0; i < breakpoint_count(inf->bp_ref); ++i)
+    {
+        unsigned long addr = breakpoint_get_address(inf->bp_ref, i);
+        // 在子进程中设置断点
+        set_breakpoint(inf, addr);
+    }
+}
 void wait_child(inferior *inf)
 {
     int status = 0;
@@ -23,7 +53,9 @@ void wait_child(inferior *inf)
     waitpid(pid, &status, 0);
     if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP)
     {
-        // printf("Child stopped by SIGTRAP\n");
+        // exec之前会触发一次SIGTRAP，必须Continue，让exec执行，然后停下，等待命令
+        printf("Child stopped by SIGTRAP\n");
+        set_breakpoints(inf); // 设置断点
         ptrace(PTRACE_CONT, pid, NULL, NULL);
         wait_child(inf);
     }
@@ -41,7 +73,7 @@ void wait_child(inferior *inf)
         inferior_backtrace(inf);
     }
 }
-inferior *inferior_new(const char *prog_path, int argc, const char **argv)
+inferior *inferior_new(const char *prog_path, int argc, const char **argv, breakpoint *bp)
 {
     inferior *inf = (inferior *)malloc(sizeof(inferior));
     if (!inf)
@@ -49,6 +81,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
 
     inf->prog_path = prog_path;
     inf->child_pid = -1;
+    inf->bp_ref = bp; // 保存断点引用
 
     // 构造execvp参数数组
     char **exec_argv = (char **)malloc(sizeof(char *) * (argc + 2));
@@ -69,6 +102,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv)
     {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
         // 子进程
+        printf("Starting child process %s\n", prog_path);
         execvp(prog_path, exec_argv);
         // 代码走不到这里，除非execvp失败
         perror("execvp");
@@ -115,7 +149,7 @@ static int print_function_name(inferior *inf, unsigned long addr)
     if (len > 0)
     {
         printf("Function at address 0x%lx: %s", addr, output);
-         // 判断是否为 main 函数
+        // 判断是否为 main 函数
         if (strncmp(output, "main ", 5) == 0 || strncmp(output, "main@", 5) == 0 || strstr(output, "main ") == output)
         {
             return 1;
@@ -145,7 +179,7 @@ void inferior_backtrace(inferior *inf)
             printf("Instr_ptr: 0x%llx\n", instr_ptr);
             if (base_ptr == 0)
                 break;
-            if(print_function_name(inf, instr_ptr))
+            if (print_function_name(inf, instr_ptr))
             {
                 // 如果是 main 函数，停止打印
                 break;
@@ -155,7 +189,6 @@ void inferior_backtrace(inferior *inf)
             // 读取上一个栈帧的基址
             base_ptr = ptrace(PTRACE_PEEKDATA, inf->child_pid, base_ptr, NULL);
         }
-        
     }
 }
 void inferior_free(inferior *inf)

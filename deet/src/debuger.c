@@ -56,7 +56,7 @@ void debuger_run(debuger *dbg)
             {
                 inferior_free(dbg->inf);
             }
-            dbg->inf = inferior_new(dbg->prog_path, argc, argv);
+            dbg->inf = inferior_new(dbg->prog_path, argc, argv, dbg->bp);
             break;
         case CMD_CONTINUE:
             if (check_inferior_running(dbg))
