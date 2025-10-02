@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <sys/reg.h>
 #include <sys/user.h>
+#include "dwarf.h"
 
 struct _inferior
 {
@@ -104,6 +105,21 @@ void inferior_continue(inferior *inf)
         wait_child(inf);
     }
 }
+static void print_function_name(inferior *inf, unsigned long addr)
+{
+    char output[256];
+    char addr_str[32];
+    snprintf(addr_str, sizeof(addr_str), "0x%lx", addr);
+    int len = get_function_from_address(inf->prog_path, addr_str, output, sizeof(output));
+    if (len > 0)
+    {
+        printf("Function at address 0x%lx: %s", addr, output);
+    }
+    else
+    {
+        printf("Function name not found for address 0x%lx\n", addr);
+    }
+}
 void inferior_backtrace(inferior *inf)
 {
     if (inf && inf->child_pid > 0)
@@ -116,6 +132,7 @@ void inferior_backtrace(inferior *inf)
         }
         // RIP寄存器包含当前指令指针，即当前执行的指令地址，崩溃时候也就是崩溃地址
         printf("RIP: 0x%llx\n", regs.rip);
+        print_function_name(inf, regs.rip);
         // 这里可以添加更多寄存器的打印
     }
 }
