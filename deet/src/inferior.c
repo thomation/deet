@@ -105,7 +105,7 @@ void inferior_continue(inferior *inf)
         wait_child(inf);
     }
 }
-static void print_function_name(inferior *inf, unsigned long addr)
+static int print_function_name(inferior *inf, unsigned long addr)
 {
     char output[256];
     char addr_str[32];
@@ -114,11 +114,17 @@ static void print_function_name(inferior *inf, unsigned long addr)
     if (len > 0)
     {
         printf("Function at address 0x%lx: %s", addr, output);
+         // 判断是否为 main 函数
+        if (strncmp(output, "main ", 5) == 0 || strncmp(output, "main@", 5) == 0 || strstr(output, "main ") == output)
+        {
+            return 1;
+        }
     }
     else
     {
         printf("Function name not found for address 0x%lx\n", addr);
     }
+    return 0;
 }
 void inferior_backtrace(inferior *inf)
 {
@@ -131,9 +137,24 @@ void inferior_backtrace(inferior *inf)
             return;
         }
         // RIP寄存器包含当前指令指针，即当前执行的指令地址，崩溃时候也就是崩溃地址
-        printf("RIP: 0x%llx\n", regs.rip);
-        print_function_name(inf, regs.rip);
-        // 这里可以添加更多寄存器的打印
+        unsigned long long int instr_ptr = regs.rip;
+        unsigned long long int base_ptr = regs.rbp;
+        while (1)
+        {
+            printf("Instr_ptr: 0x%llx\n", instr_ptr);
+            if (base_ptr == 0)
+                break;
+            if(print_function_name(inf, instr_ptr))
+            {
+                // 如果是 main 函数，停止打印
+                break;
+            }
+            // 读取栈帧中的返回地址
+            instr_ptr = ptrace(PTRACE_PEEKDATA, inf->child_pid, base_ptr + 8, NULL);
+            // 读取上一个栈帧的基址
+            base_ptr = ptrace(PTRACE_PEEKDATA, inf->child_pid, base_ptr, NULL);
+        }
+        
     }
 }
 void inferior_free(inferior *inf)
