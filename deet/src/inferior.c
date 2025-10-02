@@ -15,6 +15,7 @@ struct _inferior
 {
     const char *prog_path;
     pid_t child_pid;
+    int child_execed;
     breakpoint *bp_ref; // 引用的断点结构体，不要free它
 };
 static int set_breakpoint(inferior *inf, unsigned long addr)
@@ -54,10 +55,15 @@ void wait_child(inferior *inf)
     if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP)
     {
         // exec之前会触发一次SIGTRAP，必须Continue，让exec执行，然后停下，等待命令
-        printf("Child stopped by SIGTRAP\n");
-        set_breakpoints(inf); // 设置断点
-        ptrace(PTRACE_CONT, pid, NULL, NULL);
-        wait_child(inf);
+        printf("Child stopped by SIGTRAP child running = %d\n", inf->child_execed);
+        // 第一次是exec之前的，继续执行到断点处
+        if(!inf->child_execed)
+        {
+            set_breakpoints(inf); // 设置断点
+            inf->child_execed = 1;
+            ptrace(PTRACE_CONT, pid, NULL, NULL);
+            wait_child(inf);
+        }
     }
     else if (WIFEXITED(status))
     {
@@ -81,6 +87,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv, break
 
     inf->prog_path = prog_path;
     inf->child_pid = -1;
+    inf->child_execed = 0;
     inf->bp_ref = bp; // 保存断点引用
 
     // 构造execvp参数数组
