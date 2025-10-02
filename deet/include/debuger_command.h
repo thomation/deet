@@ -3,6 +3,7 @@ enum command
     CMD_RUN,
     CMD_CONTINUE,
     CMD_BACKTRACE,
+    CMD_BREAK,
     CMD_QUIT,
     CMD_INVALID
 };

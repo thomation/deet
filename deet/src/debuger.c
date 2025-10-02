@@ -6,10 +6,13 @@
 #include "debuger_command.h"
 #include "inferior.h"
 
+#define MAX_BREAKPOINTS 32
 struct _debuger
 {
     const char *prog_path;
     inferior *inf;
+    unsigned long breakpoints[MAX_BREAKPOINTS];
+    int num_breakpoints;
 };
 static debuger_command *get_next_command(void);
 
@@ -22,6 +25,8 @@ debuger *debuger_new(const char *prog_path)
     }
     dbg->prog_path = prog_path;
     dbg->inf = NULL;
+    dbg->num_breakpoints = 0;
+    memset(dbg->breakpoints, 0, sizeof(dbg->breakpoints));
     return dbg;
 }
 static int check_inferior_running(debuger *dbg)
@@ -31,6 +36,17 @@ static int check_inferior_running(debuger *dbg)
         printf("No program is being debugged. Use 'run' to start.\n");
         return 0;
     }
+    return 1;
+}
+static int debuger_add_breakpoint(debuger *dbg, unsigned long addr)
+{
+    if (dbg->num_breakpoints >= MAX_BREAKPOINTS)
+    {
+        printf("Breakpoint list full!\n");
+        return 0;
+    }
+    dbg->breakpoints[dbg->num_breakpoints++] = addr;
+    printf("Breakpoint added at 0x%lx\n", addr);
     return 1;
 }
 void debuger_run(debuger *dbg)
@@ -56,12 +72,27 @@ void debuger_run(debuger *dbg)
             dbg->inf = inferior_new(dbg->prog_path, argc, argv);
             break;
         case CMD_CONTINUE:
-            if(check_inferior_running(dbg))
+            if (check_inferior_running(dbg))
                 inferior_continue(dbg->inf);
             break;
         case CMD_BACKTRACE:
-            if(check_inferior_running(dbg))
+            if (check_inferior_running(dbg))
                 inferior_backtrace(dbg->inf);
+            break;
+        case CMD_BREAK:
+            if (argc >= 1)
+            {
+                // 支持 b *0x123456 或 b 0x123456
+                const char *addr_str = argv[0];
+                if (addr_str[0] == '*')
+                    addr_str++; // 跳过星号
+                unsigned long addr = strtoul(addr_str, NULL, 0);
+                debuger_add_breakpoint(dbg, addr);
+            }
+            else
+            {
+                printf("Usage: break *<address>\n");
+            }
             break;
         case CMD_QUIT:
             printf("Quitting debugger.\n");

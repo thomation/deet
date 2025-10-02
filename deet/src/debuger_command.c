@@ -22,6 +22,8 @@ static const cmd_map_entry cmd_map[] = {
     {"c", CMD_CONTINUE},
     {"backtrace", CMD_BACKTRACE},
     {"bt", CMD_BACKTRACE},
+    {"break", CMD_BREAK},
+    {"b", CMD_BREAK},
     {"quit", CMD_QUIT},
     {"q", CMD_QUIT},
 };
