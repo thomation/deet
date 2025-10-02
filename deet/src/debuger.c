@@ -5,14 +5,13 @@
 #include "debuger.h"
 #include "debuger_command.h"
 #include "inferior.h"
+#include "breakpoint.h"
 
-#define MAX_BREAKPOINTS 32
 struct _debuger
 {
     const char *prog_path;
     inferior *inf;
-    unsigned long breakpoints[MAX_BREAKPOINTS];
-    int num_breakpoints;
+    breakpoint *bp;
 };
 static debuger_command *get_next_command(void);
 
@@ -25,8 +24,7 @@ debuger *debuger_new(const char *prog_path)
     }
     dbg->prog_path = prog_path;
     dbg->inf = NULL;
-    dbg->num_breakpoints = 0;
-    memset(dbg->breakpoints, 0, sizeof(dbg->breakpoints));
+    dbg->bp = breakpoint_new();
     return dbg;
 }
 static int check_inferior_running(debuger *dbg)
@@ -36,17 +34,6 @@ static int check_inferior_running(debuger *dbg)
         printf("No program is being debugged. Use 'run' to start.\n");
         return 0;
     }
-    return 1;
-}
-static int debuger_add_breakpoint(debuger *dbg, unsigned long addr)
-{
-    if (dbg->num_breakpoints >= MAX_BREAKPOINTS)
-    {
-        printf("Breakpoint list full!\n");
-        return 0;
-    }
-    dbg->breakpoints[dbg->num_breakpoints++] = addr;
-    printf("Breakpoint added at 0x%lx\n", addr);
     return 1;
 }
 void debuger_run(debuger *dbg)
@@ -87,7 +74,7 @@ void debuger_run(debuger *dbg)
                 if (addr_str[0] == '*')
                     addr_str++; // 跳过星号
                 unsigned long addr = strtoul(addr_str, NULL, 0);
-                debuger_add_breakpoint(dbg, addr);
+                breakpoint_add_address(dbg->bp, addr);
             }
             else
             {
@@ -126,6 +113,8 @@ void debuger_free(debuger *dbg)
     {
         if (dbg->inf)
             inferior_free(dbg->inf);
+        if (dbg->bp)
+            breakpoint_free(dbg->bp);
         free(dbg);
     }
 }
