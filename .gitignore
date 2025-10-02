@@ -16,3 +16,4 @@ deet/Cargo.lock
 deet/samples/*
 !deet/samples/*.c
 deet/deet
+dwarf/dwarf_parser
