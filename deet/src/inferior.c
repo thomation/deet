@@ -38,6 +38,7 @@ void wait_child(inferior *inf)
     else if (WIFSTOPPED(status))
     {
         printf("Child stopped by signal %d\n", WSTOPSIG(status));
+        inferior_backtrace(inf);
     }
 }
 inferior *inferior_new(const char *prog_path, int argc, const char **argv)
