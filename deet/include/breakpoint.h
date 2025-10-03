@@ -1,7 +1,8 @@
-typedef struct _breakpoint breakpoint;
+typedef struct _breakpoints breakpoints;
 
-breakpoint *breakpoint_new();
-int breakpoint_add_address(breakpoint *bp, unsigned long addr);
-int breakpoint_count(breakpoint *bp);
-unsigned long breakpoint_get_address(breakpoint *bp, int index);
-void breakpoint_free(breakpoint *bp);
+breakpoints *breakpoints_new();
+int breakpoints_add_address(breakpoints *bp, unsigned long addr);
+int breakpoints_count(breakpoints *bp);
+unsigned long breakpoints_get_address(breakpoints *bp, int index);
+void breakpoints_set_original_data(breakpoints *bp, int index, unsigned char data);
+void breakpoints_free(breakpoints *bp);

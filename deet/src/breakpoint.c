@@ -5,15 +5,20 @@
 #include "dwarf.h"
 
 #define MAX_BREAKPOINTS 32
-struct _breakpoint
+struct breakpoint
 {
-    unsigned long breakpoints[MAX_BREAKPOINTS];
+    unsigned long address;
+    unsigned char original_data;
+};
+struct _breakpoints
+{
+    struct breakpoint breakpoints[MAX_BREAKPOINTS];
     int num_breakpoints;
 };
 
-breakpoint *breakpoint_new()
+breakpoints *breakpoints_new()
 {
-    breakpoint *bp = (breakpoint *)malloc(sizeof(breakpoint));
+    breakpoints *bp = (breakpoints *)malloc(sizeof(breakpoints));
     if (bp)
     {
         bp->num_breakpoints = 0;
@@ -21,30 +26,38 @@ breakpoint *breakpoint_new()
     }
     return bp;
 }
-int breakpoint_add_address(breakpoint *bp, unsigned long addr)
+int breakpoints_add_address(breakpoints *bp, unsigned long addr)
 {
     if (bp->num_breakpoints >= MAX_BREAKPOINTS)
     {
-        printf("Breakpoint list full!\n");
+        printf("breakpoints list full!\n");
         return 0;
     }
-    bp->breakpoints[bp->num_breakpoints++] = addr;
-    printf("Breakpoint added at 0x%lx\n", addr);
+    bp->breakpoints[bp->num_breakpoints++].address = addr;
+    printf("breakpoints added at 0x%lx\n", addr);
     return 1;
 }
-int breakpoint_count(breakpoint *bp)
+int breakpoints_count(breakpoints *bp)
 {
     return bp ? bp->num_breakpoints : 0;
 }
-unsigned long breakpoint_get_address(breakpoint *bp, int index)
+unsigned long breakpoints_get_address(breakpoints *bp, int index)
 {
     if (bp == NULL || index < 0 || index >= bp->num_breakpoints)
     {
         return 0;
     }
-    return bp->breakpoints[index];
+    return bp->breakpoints[index].address;
 }
-void breakpoint_free(breakpoint *bp)
+void breakpoints_set_original_data(breakpoints *bp, int index, unsigned char data)
+{
+    if (bp == NULL || index < 0 || index >= bp->num_breakpoints)
+    {
+        return;
+    }
+    bp->breakpoints[index].original_data = data;
+}
+void breakpoints_free(breakpoints *bp)
 {
     if (bp)
     {

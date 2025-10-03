@@ -16,35 +16,44 @@ struct _inferior
     const char *prog_path;
     pid_t child_pid;
     int child_execed;
-    breakpoint *bp_ref; // 引用的断点结构体，不要free它
+    breakpoints *bp_ref; // 引用的断点结构体，不要free它
 };
-static int set_breakpoint(inferior *inf, unsigned long addr)
+static long set_breakpoint(inferior *inf, unsigned long addr)
 {
     long data = ptrace(PTRACE_PEEKDATA, inf->child_pid, (void *)addr, NULL);
     if (data == -1)
     {
         perror("ptrace(PEEKDATA)");
-        return 0;
+        return -1;
     }
     long data_with_int3 = (data & ~0xff) | 0xcc; // 将最低字节替换为0xcc
     if (ptrace(PTRACE_POKEDATA, inf->child_pid, (void *)addr, (void *)data_with_int3) == -1)
     {
         perror("ptrace(POKEDATA)");
-        return 0;
+        return -1;
     }
     printf("Set breakpoint at 0x%lx, data: 0x%lx  -> 0x%lx\n", addr, data, data_with_int3);
-    return 1;
+    return data;
 }
 
 static void set_breakpoints(inferior *inf)
 {
     if (inf == NULL || inf->bp_ref == NULL)
         return;
-    for (int i = 0; i < breakpoint_count(inf->bp_ref); ++i)
+    for (int i = 0; i < breakpoints_count(inf->bp_ref); ++i)
     {
-        unsigned long addr = breakpoint_get_address(inf->bp_ref, i);
+        unsigned long addr = breakpoints_get_address(inf->bp_ref, i);
         // 在子进程中设置断点
-        set_breakpoint(inf, addr);
+        long original_data = set_breakpoint(inf, addr);
+        if(original_data == -1)
+        {
+            printf("Failed to set breakpoint at 0x%lx\n", addr);
+        }
+        else
+        {
+            // 保存 original_data 以便恢复
+            breakpoints_set_original_data(inf->bp_ref, i, (unsigned char)(original_data & 0xff));
+        }
     }
 }
 void wait_child(inferior *inf)
@@ -79,7 +88,7 @@ void wait_child(inferior *inf)
         inferior_backtrace(inf);
     }
 }
-inferior *inferior_new(const char *prog_path, int argc, const char **argv, breakpoint *bp)
+inferior *inferior_new(const char *prog_path, int argc, const char **argv, breakpoints *bp)
 {
     inferior *inf = (inferior *)malloc(sizeof(inferior));
     if (!inf)

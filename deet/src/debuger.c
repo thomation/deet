@@ -11,7 +11,7 @@ struct _debuger
 {
     const char *prog_path;
     inferior *inf;
-    breakpoint *bp;
+    breakpoints *bp;
 };
 static debuger_command *get_next_command(void);
 
@@ -24,7 +24,7 @@ debuger *debuger_new(const char *prog_path)
     }
     dbg->prog_path = prog_path;
     dbg->inf = NULL;
-    dbg->bp = breakpoint_new();
+    dbg->bp = breakpoints_new();
     return dbg;
 }
 static int check_inferior_running(debuger *dbg)
@@ -74,7 +74,7 @@ void debuger_run(debuger *dbg)
                 if (addr_str[0] == '*')
                     addr_str++; // 跳过星号
                 unsigned long addr = strtoul(addr_str, NULL, 0);
-                breakpoint_add_address(dbg->bp, addr);
+                breakpoints_add_address(dbg->bp, addr);
             }
             else
             {
@@ -114,7 +114,7 @@ void debuger_free(debuger *dbg)
         if (dbg->inf)
             inferior_free(dbg->inf);
         if (dbg->bp)
-            breakpoint_free(dbg->bp);
+            breakpoints_free(dbg->bp);
         free(dbg);
     }
 }
