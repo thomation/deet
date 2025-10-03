@@ -16,7 +16,8 @@ struct _inferior
     const char *prog_path;
     pid_t child_pid;
     int child_execed;
-    breakpoints *bp_ref; // 引用的断点结构体，不要free它
+    breakpoints *bp_ref;      // 引用的断点结构体，不要free它
+    int stoped_at_breakpoint; // 是否停在断点处
 };
 static long set_breakpoint(inferior *inf, unsigned long addr)
 {
@@ -45,7 +46,7 @@ static void set_breakpoints(inferior *inf)
         unsigned long addr = breakpoints_get_address(inf->bp_ref, i);
         // 在子进程中设置断点
         long original_data = set_breakpoint(inf, addr);
-        if(original_data == -1)
+        if (original_data == -1)
         {
             printf("Failed to set breakpoint at 0x%lx\n", addr);
         }
@@ -64,14 +65,21 @@ void wait_child(inferior *inf)
     if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP)
     {
         // exec之前会触发一次SIGTRAP，必须Continue，让exec执行，然后停下，等待命令
-        printf("Child stopped by SIGTRAP child running = %d\n", inf->child_execed);
+        printf("Child stopped by SIGTRAP child running = %d, stoped at breakpoint = %d\n", inf->child_execed, inf->stoped_at_breakpoint);
         // 第一次是exec之前的，继续执行到断点处
-        if(!inf->child_execed)
+        if (!inf->child_execed)
         {
+            printf("Child execed, now set breakpoints.\n");
             set_breakpoints(inf); // 设置断点
             inf->child_execed = 1;
             ptrace(PTRACE_CONT, pid, NULL, NULL);
             wait_child(inf);
+        }
+        else if(!inf->stoped_at_breakpoint)
+        {
+            // 继续执行到断点处
+            printf("Child hit a breakpoint!\n");
+            inf->stoped_at_breakpoint = 1;
         }
     }
     else if (WIFEXITED(status))
@@ -98,6 +106,7 @@ inferior *inferior_new(const char *prog_path, int argc, const char **argv, break
     inf->child_pid = -1;
     inf->child_execed = 0;
     inf->bp_ref = bp; // 保存断点引用
+    inf->stoped_at_breakpoint = 0;
 
     // 构造execvp参数数组
     char **exec_argv = (char **)malloc(sizeof(char *) * (argc + 2));
@@ -152,6 +161,52 @@ void inferior_continue(inferior *inf)
 {
     if (inf && inf->child_pid > 0)
     {
+        if(inf->stoped_at_breakpoint)
+        {
+            // 获取断点地址
+            struct user_regs_struct regs;
+            if (ptrace(PTRACE_GETREGS, inf->child_pid, NULL, &regs) == -1)
+            {
+                perror("ptrace(GETREGS)");
+                return;
+            }
+            unsigned long rip = regs.rip;
+            unsigned long bp_addr = rip - 1; // 断点地址是当前指令地址减1
+            printf("Continuing from breakpoint at 0x%lx\n", bp_addr);
+            // 将RIP指向断点地址
+            regs.rip = bp_addr;
+            if (ptrace(PTRACE_SETREGS, inf->child_pid, NULL, &regs) == -1)
+            {
+                perror("ptrace(SETREGS)");
+                return;
+            }
+            // 这里需要恢复断点处的原始指令字节，然后单步执行，再次设置断点
+            long data = ptrace(PTRACE_PEEKDATA, inf->child_pid, (void *)bp_addr, NULL);
+            if (data == -1)
+            {
+                perror("ptrace(PEEKDATA)");
+                return;
+            }
+            unsigned char original_data = breakpoints_get_original_data(inf->bp_ref, bp_addr);
+            long restored_data = (data & ~0xff) | original_data; // 恢复原始字节
+            printf("Restore from breakpoint at 0x%lx, data: 0x%lx  -> 0x%lx\n", bp_addr, data, restored_data);
+            if (ptrace(PTRACE_POKEDATA, inf->child_pid, (void *)bp_addr, (void *)restored_data) == -1)
+            {
+                perror("ptrace(POKEDATA)");
+                return;
+            }
+            // 单步执行
+            printf("Single stepping over breakpoint at 0x%lx\n", bp_addr);
+            if (ptrace(PTRACE_SINGLESTEP, inf->child_pid, NULL, NULL) == -1)
+            {
+                perror("ptrace(SINGLESTEP)");
+                return;
+            }
+            wait_child(inf);
+            // 重新设置断点
+            set_breakpoint(inf, bp_addr);
+            inf->stoped_at_breakpoint = 0; // 重置状态
+        }
         ptrace(PTRACE_CONT, inf->child_pid, NULL, NULL);
         wait_child(inf);
     }

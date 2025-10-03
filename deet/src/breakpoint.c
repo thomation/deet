@@ -57,6 +57,21 @@ void breakpoints_set_original_data(breakpoints *bp, int index, unsigned char dat
     }
     bp->breakpoints[index].original_data = data;
 }
+unsigned char breakpoints_get_original_data(breakpoints *bp, unsigned long addr)
+{
+    if (bp == NULL)
+    {
+        return 0;
+    }
+    for (int i = 0; i < bp->num_breakpoints; ++i)
+    {
+        if (bp->breakpoints[i].address == addr)
+        {
+            return bp->breakpoints[i].original_data;
+        }
+    }
+    return 0;
+}
 void breakpoints_free(breakpoints *bp)
 {
     if (bp)
